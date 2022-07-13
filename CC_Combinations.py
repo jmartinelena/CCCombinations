@@ -1,5 +1,6 @@
+from multiprocessing.sharedctypes import Value
 import numpy as np
-from itertools import product
+from itertools import product, islice
 import random
 
 #Luhn Algorithm
@@ -73,7 +74,32 @@ def estimate_probabilty(lastfour):
 # Read this
 # https://stackoverflow.com/questions/36435754/generating-a-numpy-array-with-all-combinations-of-numbers-that-sum-to-less-than
 # https://stackoverflow.com/questions/1208118/using-numpy-to-build-an-array-of-all-combinations-of-two-arrays/
-# Nevermind, I have to use strings so I'm not gonna botter with efficiency
+# Nevermind, I have to use strings so I'm not gonna bother with efficiency
+
+# I don't want to create a a large amount of combinations and then filter it, so I have to find an elegant way
+# of only generating data that is a possible combination. Sadly, I don't know how to achieve this (yet). (generators? recursion?)
+def get_combinations(lastfour, n, mode):
+    """input: 
+        lastfour: last four digits of a possible credit card as a string
+        n: amount of possible combinations you want
+        mode: 1 for random or 0 for first n combinations
+    output: writes a combinations.txt file with the possible combinations obtained."""
+    if mode == 0: #first n
+        first12 = islice(product("0123456789", repeat=12), n*15)
+        alldigits = ["".join(x)+str(lastfour) for x in first12]
+    elif mode == 1: #random n
+        first12 = random_products(n*15)
+        alldigits = [row+str(lastfour) for row in first12]
+    else:
+        raise ValueError("Wrong mode. Expected 0 or 1.")
+
+    filtered_sample = np.fromiter((luhn(x) for x in alldigits), dtype=np.bool8)
+    keep = np.extract(filtered_sample, alldigits)
+    keep = keep[:n]
+
+    with open("combinations.txt", "w", encoding='utf-8') as file:
+        for result in keep:
+            file.write(result+"\n")
 
 
 if __name__ == "__main__":
@@ -81,6 +107,7 @@ if __name__ == "__main__":
     lastfour = input("Type the last 4 numbers of the credit card: ")
     estimate = estimate_probabilty(lastfour)
     print(f"Theres approximately {estimate[1]} of valid credit cards ending with {lastfour}.")
-    n = int(input("How many combinations do you want? "))
-    #mode = int(input(f"Do you want the first {n} combinations of valid credit cards or a random {n} amount of them? Type \"0\" for the first {n} combinations, otherwise type \"1\" for random ones."))
-
+    n = int(input("How many combinations do you want? Mind you, it takes a long time to calculate them if you choose a big number. n: "))
+    mode = int(input(f"Do you want the first {n} combinations of valid credit cards or a {n} random of them? Type \"0\" for the first {n} combinations, otherwise type \"1\" for random ones. mode: "))
+    get_combinations(lastfour, n, mode)
+    print("Results written to combinations.txt file.")
